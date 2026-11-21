@@ -64,6 +64,12 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 #pbi{width:44px;text-align:center}
 #adh{position:fixed;right:60px;top:50px;z-index:41;padding:16px 34px;border-radius:50px;background:#fff;color:#7a4fd6;font-size:38px;display:none;box-shadow:0 0 50px 10px rgba(255,200,240,.8);animation:hp 2s ease-in-out infinite}
 #adh.on{display:block}
+#ab{position:fixed;inset:0;z-index:35;display:none;pointer-events:none}
+#ab.on{display:block}
+#ab .bk{position:absolute;left:0;right:0;top:0;bottom:26%;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;color:#fff;font-size:60px;text-align:center}
+#ab .zone{position:absolute;left:0;right:0;bottom:0;height:26%;border-top:8px solid #ffd86b;box-shadow:inset 0 40px 80px -30px rgba(255,216,107,.55);animation:tw 1.6s ease-in-out infinite}
+#abb{background:#fff;color:#7a4fd6;font-size:70px;padding:26px 100px;border-radius:80px;box-shadow:0 0 70px 16px rgba(255,200,240,.8);animation:hp 2s ease-in-out infinite}
+#abc{color:#ffd86b}#abh{font-size:34px;opacity:.85;line-height:1.4}
 @keyframes fl2{50%{transform:scaleY(1.15) scaleX(.9);opacity:.85}}
 .fl2{animation:fl2 2.2s ease-in-out infinite;transform-origin:50% 100%}
 @media (prefers-reduced-motion:reduce){.fl2,#hint,.st,.ff,.bb,.sn,.cl,.un,.ray,.sel .in{animation:none}}
@@ -79,7 +85,8 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 <div id="err"><h2>Oops! Let's try again 💕</h2><div class="bt">TRY AGAIN</div></div>
 <div id="pk"></div>
 <div id="p"><div id="yt"></div></div>
-<div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh">▼ Skip Ad</div>
+<div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh"></div>
+<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">Press ▼ to hand control to the Skip button (at the bottom, in the gold strip)<br>then press OK · ▲ reloads the video (may avoid the ad) · Back returns</div></div><div class="zone"></div></div>
 <script>
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
@@ -283,7 +290,7 @@ function play(){
   },350);
 }
 function stop(){
-  if(adf)exitAd();$("pb").classList.remove("on");$("adh").classList.remove("on");
+  if(adf)exitAd();$("pb").classList.remove("on");$("ab").classList.remove("on");if(wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}}
   if(player&&player.stopVideo)player.stopVideo();
   $("p").classList.remove("on");els.forEach(x=>x.classList.remove("go"));
   $("car").classList.remove("out");$("lab").style.opacity=1;ui="chan";lay();
@@ -301,13 +308,18 @@ function enterAd(){if(!player||!player.getIframe)return;adf=true;$("p").classLis
   try{const f=player.getIframe();f.setAttribute("tabindex","0");f.focus()}catch(x){}}
 function exitAd(){adf=false;$("p").classList.remove("ad");
   try{const f=player.getIframe();f.setAttribute("tabindex","-1");f.blur()}catch(x){}window.focus()}
+let wasAd=false,wasMuted=false;
+function reloadVid(){try{player.loadVideoById(vids[ci].id)}catch(x){}}
 setInterval(()=>{
-  if(ui!=="play"||!player||!player.getCurrentTime||!$("p").classList.contains("on")){$("adh").classList.remove("on");return}
+  const ab=$("ab");
+  if(ui!=="play"||!player||!player.getCurrentTime||!$("p").classList.contains("on")){ab.classList.remove("on");return}
   const ad=inAd();
-  if(!ad&&adf)exitAd();
-  const h=$("adh");h.textContent=adf?"Skip Ad here · Back = remote":"▼ Press Down: Skip Ad";h.classList.toggle("on",ad||adf);
+  if(ad&&!wasAd){wasAd=true;try{wasMuted=player.isMuted();player.mute()}catch(x){}}
+  if(!ad&&wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}if(adf)exitAd()}
+  ab.classList.toggle("on",ad);
   const d=player.getDuration()||0,t=seekT!=null?seekT:player.getCurrentTime()||0;
-  $("pb").classList.toggle("on",Date.now()<pbUntil&&!adf);
+  if(ad){$("abc").textContent="Ad ends in "+Math.max(0,Math.ceil(d-t))+"s";$("abb").style.opacity=adf?.6:1;$("abb").textContent=adf?"Select Skip below ▼":"▼ SKIP AD"}
+  $("pb").classList.toggle("on",!ad&&Date.now()<pbUntil&&!adf);
   $("pbf").style.width=(d?Math.min(100,t/d*100):0)+"%";$("pbc").textContent=fmt(t);$("pbd").textContent=fmt(d);
   $("pbi").textContent=player.getPlayerState()===2?"⏸":"▶";
 },250);
@@ -338,7 +350,7 @@ document.addEventListener("keydown",e=>{
         seekT=Math.max(0,Math.min(d-1,base+((k===39||k===417)?10:-10)));player.seekTo(seekT,true);showBar(3500);
         clearTimeout(seekTm);seekTm=setTimeout(()=>{seekT=null},1200)}
       else if(k===40)enterAd();
-      else if(k===38)showBar(4000);
+      else if(k===38){if(inAd())reloadVid();else showBar(4000)}
       else if(k===413)stop();
     }
     return}
