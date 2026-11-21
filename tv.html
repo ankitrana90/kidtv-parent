@@ -56,7 +56,7 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 .pi.f{transform:scale(1.14) translateY(-10px);border-color:#fff;opacity:1;box-shadow:0 24px 40px -12px rgba(50,25,110,.5)}
 .sd{background:#fff}
 #p{position:fixed;inset:0;background:#000;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s;z-index:30}#p.on{opacity:1;visibility:visible}
-#p iframe{pointer-events:none}#p.ad iframe{pointer-events:auto}
+#p iframe{pointer-events:none}#p.ad iframe{pointer-events:auto;transform:scale(3);transform-origin:100% 100%}
 #pb{position:fixed;left:90px;right:90px;bottom:60px;z-index:40;display:flex;align-items:center;gap:26px;padding:22px 34px;border-radius:50px;background:rgba(20,10,50,.75);color:#fff;font-size:34px;opacity:0;transform:translateY(30px);transition:opacity .3s,transform .3s;pointer-events:none}
 #pb.on{opacity:1;transform:none}
 #pbt{flex:1;height:14px;border-radius:7px;background:rgba(255,255,255,.3);overflow:hidden}
@@ -86,7 +86,7 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 <div id="pk"></div>
 <div id="p"><div id="yt"></div></div>
 <div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh"></div><div id="dbg" style="display:none;position:fixed;left:20px;top:20px;z-index:50;font:24px monospace;color:#0f0;background:rgba(0,0,0,.7);padding:12px;white-space:pre"></div>
-<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">🖱 Point the Magic Remote at the Skip button in the gold strip and click<br>If this screen did not appear by itself press ▼ (press ▼ again when the ad is over) · ▲ reloads the video</div></div><div class="zone"></div></div>
+<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">🖱 Point the Magic Remote at the Skip button in the gold strip (bottom right) and click<br>If this screen did not appear by itself press ▼ (press ▼ again when the ad is over) · ▲ reloads the video</div></div><div class="zone"></div></div>
 <script>
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
@@ -281,6 +281,7 @@ function goHome(){
 
 // ---------- playback ----------
 function play(){
+  ytInfo={};adHold=0;
   if(!ytReady||!vids[ci])return;
   ui="play";go();els[ci].classList.add("go");$("car").classList.add("out");$("lab").style.opacity=0;
   setTimeout(()=>{
@@ -290,7 +291,7 @@ function play(){
   },350);
 }
 function stop(){
-  manAd=false;if(adf)exitAd();$("pb").classList.remove("on");$("ab").classList.remove("on");if(wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}}
+  manAd=false;adHold=0;ytInfo={};if(adf)exitAd();$("pb").classList.remove("on");$("ab").classList.remove("on");if(wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}}
   if(player&&player.stopVideo)player.stopVideo();
   $("p").classList.remove("on");els.forEach(x=>x.classList.remove("go"));
   $("car").classList.remove("out");$("lab").style.opacity=1;ui="chan";lay();
@@ -308,8 +309,14 @@ function adSig(){try{
   if(player.getAdState&&player.getAdState()===1)return true;
   if(vd&&vd.video_id&&v&&vd.video_id!==v.id)return true;
   const d=player.getDuration();if(v&&v.dur>0&&d>0&&Math.abs(d-v.dur)>3)return true;
+  const mv=ytInfo.videoData;if(mv&&mv.video_id&&v&&mv.video_id!==v.id)return true;
+  if(v&&v.dur>0&&ytInfo.duration>0&&Math.abs(ytInfo.duration-v.dur)>3)return true;
 }catch(x){}return false}
-let manAd=false;
+let manAd=false,adHold=0,ytInfo={},lastMsg="";
+window.addEventListener("message",e=>{
+  if(typeof e.data!=="string"||e.data.indexOf("{")!==0)return;
+  try{const m=JSON.parse(e.data);if(m&&m.info&&typeof m.info==="object"){Object.assign(ytInfo,m.info);lastMsg=Object.keys(m.info).join(",").slice(0,160)}}catch(x){}
+});
 function inAd(){return manAd||adSig()}
 function enterAd(){if(!player||!player.getIframe)return;adf=true;$("p").classList.add("ad");$("pb").classList.remove("on");
   try{const f=player.getIframe();f.setAttribute("tabindex","0");f.focus()}catch(x){}}
@@ -320,10 +327,10 @@ function reloadVid(){try{player.loadVideoById(vids[ci].id)}catch(x){}}
 setInterval(()=>{
   const ab=$("ab");
   if(ui!=="play"||!player||!player.getCurrentTime||!$("p").classList.contains("on")){ab.classList.remove("on");return}
-  const ad=inAd();
+  if(adSig())adHold=Date.now()+1500;const ad=manAd||Date.now()<adHold;
   if(ad&&!wasAd){wasAd=true;try{wasMuted=player.isMuted();player.mute()}catch(x){}}
   if(!ad&&wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}if(adf)exitAd()}
-  try{if($("dbg").style.display==="block"){const vd=player.getVideoData?player.getVideoData():{};$("dbg").textContent="state "+player.getPlayerState()+"  adState "+(player.getAdState?player.getAdState():"n/a")+"\nvid "+vd.video_id+"  exp "+vids[ci].id+"\ndur "+player.getDuration()+"  exp "+vids[ci].dur+"  t "+player.getCurrentTime().toFixed(1)+"\nad "+ad+" manual "+manAd}}catch(x){}
+  try{if($("dbg").style.display==="block"){const vd=player.getVideoData?player.getVideoData():{};$("dbg").textContent="state "+player.getPlayerState()+"  adState "+(player.getAdState?player.getAdState():"n/a")+"\nvid "+vd.video_id+"  exp "+vids[ci].id+"\ndur "+player.getDuration()+"  exp "+vids[ci].dur+"  t "+player.getCurrentTime().toFixed(1)+"\nad "+ad+" manual "+manAd+"\nmsg "+lastMsg}}catch(x){}
   ab.classList.toggle("on",ad);$("p").classList.toggle("ad",ad||adf);
   const d=player.getDuration()||0,t=seekT!=null?seekT:player.getCurrentTime()||0;
   if(ad){$("abc").textContent="Ad ends in "+Math.max(0,Math.ceil(d-t))+"s";$("abb").textContent="👆 Click SKIP AD below";if(manAd&&!adSig())$("abc").textContent="Press ▼ again when the ad is over"}
