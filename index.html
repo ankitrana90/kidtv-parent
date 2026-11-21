@@ -56,9 +56,19 @@ function draw() {
 function rm(i) { channels.splice(i, 1); draw(); }
 
 async function search() {
-  const r = await (await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=6&q=${encodeURIComponent($("q").value)}&key=${$("key").value.trim()}`)).json();
-  window._r = (r.items || []).map(i => ({ id: i.snippet.channelId, name: i.snippet.title }));
-  $("res").innerHTML = window._r.map((c, i) => `<li>${c.name}<button onclick="add(${i})">Add</button></li>`).join("");
+  const key = $("key").value.trim(), q = $("q").value.trim();
+  $("res").innerHTML = "";
+  if (!key) { $("setup").open = true; $("st").textContent = "Enter your YouTube API key in Setup first."; return; }
+  if (!q) { $("st").textContent = "Type a channel name first."; return; }
+  $("st").textContent = "Searching…";
+  try {
+    const r = await (await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=6&q=${encodeURIComponent(q)}&key=${key}`)).json();
+    if (r.error) { $("st").textContent = "YouTube error: " + r.error.message; return; }
+    window._r = (r.items || []).map(i => ({ id: i.snippet.channelId || (i.id && i.id.channelId), name: i.snippet.title }));
+    if (!window._r.length) { $("st").textContent = "No channels found. Try another name."; return; }
+    $("st").textContent = "";
+    $("res").innerHTML = window._r.map((c, i) => `<li>${c.name}<button onclick="add(${i})">Add</button></li>`).join("");
+  } catch (e) { $("st").textContent = "Network error: " + e.message; }
 }
 function add(i) {
   const c = window._r[i];
@@ -72,5 +82,6 @@ async function save() {
     $("st").textContent = "Saved. TV updates next time the app opens.";
   } catch (e) { $("st").textContent = "Save failed"; }
 }
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") search(); });
 load();
 </script></body></html>
