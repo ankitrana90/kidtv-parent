@@ -1,0 +1,76 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kid TV Parent</title>
+<style>
+body{font:16px system-ui;max-width:520px;margin:auto;padding:16px}
+input,textarea,button{width:100%;box-sizing:border-box;padding:12px;margin:6px 0;font:inherit}
+button{background:#2563eb;color:#fff;border:0;border-radius:8px}
+ul{list-style:none;padding:0}
+li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #ddd}
+li button{width:auto;padding:6px 12px}
+.x{background:#dc2626}
+small{color:#666}
+</style></head><body>
+<h2>Kid TV Controls</h2>
+<details id="setup"><summary>Setup</summary>
+<input id="fb" placeholder="Firebase DB URL">
+<input id="code" placeholder="Family code (same as TV app)">
+<input id="key" placeholder="YouTube API key">
+</details>
+
+<h3>Allowed channels</h3>
+<input id="q" placeholder="Search channel name…">
+<button onclick="search()">Search</button>
+<ul id="res"></ul>
+<ul id="list"></ul>
+
+<h3>Blocked words</h3>
+<small>Comma separated. Videos with these in the title are hidden.</small>
+<textarea id="words" rows="3" placeholder="tom and jerry, blippi"></textarea>
+
+<button onclick="save()">Save to TV</button>
+<p id="st"></p>
+
+<script>
+const $ = id => document.getElementById(id);
+let channels = [];
+const L = k => { try { return localStorage.getItem(k) || "" } catch (e) { return "" } };
+const S = (k, v) => { try { localStorage.setItem(k, v) } catch (e) {} };
+["fb", "code", "key"].forEach(k => { $(k).value = L(k); $(k).onchange = () => S(k, $(k).value.trim()); });
+if (!$("code").value) { $("code").value = Math.random().toString(36).slice(2, 12); S("code", $("code").value); }
+if (!$("fb").value) $("setup").open = true;
+const url = () => `${$("fb").value.trim()}/f/${$("code").value.trim()}.json`;
+
+async function load() {
+  if (!$("fb").value) return;
+  try {
+    const c = await (await fetch(url())).json();
+    if (c) { channels = c.channels || []; $("words").value = c.words || ""; if (c.key) $("key").value = c.key; }
+    draw();
+  } catch (e) { $("st").textContent = "Load failed"; }
+}
+
+function draw() {
+  $("list").innerHTML = channels.map((c, i) => `<li>${c.name}<button class="x" onclick="rm(${i})">Remove</button></li>`).join("") || "<small>None yet</small>";
+}
+function rm(i) { channels.splice(i, 1); draw(); }
+
+async function search() {
+  const r = await (await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=6&q=${encodeURIComponent($("q").value)}&key=${$("key").value.trim()}`)).json();
+  window._r = (r.items || []).map(i => ({ id: i.snippet.channelId, name: i.snippet.title }));
+  $("res").innerHTML = window._r.map((c, i) => `<li>${c.name}<button onclick="add(${i})">Add</button></li>`).join("");
+}
+function add(i) {
+  const c = window._r[i];
+  if (!channels.some(x => x.id === c.id)) channels.push(c);
+  $("res").innerHTML = ""; draw();
+}
+
+async function save() {
+  try {
+    await fetch(url(), { method: "PUT", body: JSON.stringify({ key: $("key").value.trim(), channels, words: $("words").value }) });
+    $("st").textContent = "Saved. TV updates next time the app opens.";
+  } catch (e) { $("st").textContent = "Save failed"; }
+}
+load();
+</script></body></html>
