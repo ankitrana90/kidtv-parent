@@ -1,6 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1920">
 <title>Kid TV</title>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://www.googleapis.com"><link rel="preconnect" href="https://i.ytimg.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://yt3.ggpht.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 *{box-sizing:border-box}
 :root{--ink:#5a3d8a;--halo:rgba(255,200,240,.9);--veil:#f3eaff}
@@ -55,7 +56,14 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 .pi.f{transform:scale(1.14) translateY(-10px);border-color:#fff;opacity:1;box-shadow:0 24px 40px -12px rgba(50,25,110,.5)}
 .sd{background:#fff}
 #p{position:fixed;inset:0;background:#000;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s;z-index:30}#p.on{opacity:1;visibility:visible}
-#p iframe{pointer-events:none}
+#p iframe{pointer-events:none}#p.ad iframe{pointer-events:auto}
+#pb{position:fixed;left:90px;right:90px;bottom:60px;z-index:40;display:flex;align-items:center;gap:26px;padding:22px 34px;border-radius:50px;background:rgba(20,10,50,.75);color:#fff;font-size:34px;opacity:0;transform:translateY(30px);transition:opacity .3s,transform .3s;pointer-events:none}
+#pb.on{opacity:1;transform:none}
+#pbt{flex:1;height:14px;border-radius:7px;background:rgba(255,255,255,.3);overflow:hidden}
+#pbf{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff8fc7,#9b6bff);border-radius:7px}
+#pbi{width:44px;text-align:center}
+#adh{position:fixed;right:60px;top:50px;z-index:41;padding:16px 34px;border-radius:50px;background:#fff;color:#7a4fd6;font-size:38px;display:none;box-shadow:0 0 50px 10px rgba(255,200,240,.8);animation:hp 2s ease-in-out infinite}
+#adh.on{display:block}
 @keyframes fl2{50%{transform:scaleY(1.15) scaleX(.9);opacity:.85}}
 .fl2{animation:fl2 2.2s ease-in-out infinite;transform-origin:50% 100%}
 @media (prefers-reduced-motion:reduce){.fl2,#hint,.st,.ff,.bb,.sn,.cl,.un,.ray,.sel .in{animation:none}}
@@ -71,12 +79,12 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 <div id="err"><h2>Oops! Let's try again 💕</h2><div class="bt">TRY AGAIN</div></div>
 <div id="pk"></div>
 <div id="p"><div id="yt"></div></div>
-<script src="https://www.youtube.com/iframe_api"></script>
+<div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh">▼ Skip Ad</div>
 <script>
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
 const LS={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
-let chans=[],tiles=[],recWords=[],VC={},rnd=false,words=[],key="",vids=[],els=[],ci=0,homeCi=0,W=340,md="c",ui="load",pk=false,pi=0,ti=+LS.g("th")||0,snd=LS.g("snd")!=="0",ytReady=false,player=null,retry=null,back=null,layer=0;
+let chans=[],tiles=[],recWords=[],VC={},rnd=false,words=[],key="",vids=[],els=[],ci=0,homeCi=0,W=340,md="c",ui="load",pk=false,pi=0,ti=+LS.g("th")||0,snd=LS.g("snd")!=="0",ytReady=false,player=null,retry=null,back=null,layer=0,adf=false,pbUntil=0,seekT=null,seekTm=0;
 function onYouTubeIframeAPIReady(){ytReady=true}
 const api=(p,q)=>fetch(`https://www.googleapis.com/youtube/v3/${p}?${q}&key=${key}`).then(r=>r.json());
 const BG=[["#ffd1e6","#ffe9d6"],["#d6e4ff","#e9dcff"],["#c9f3e6","#e2f6d3"],["#ffe3c4","#ffd1e6"],["#dcd0ff","#c9e6ff"]];
@@ -160,7 +168,7 @@ function mount(list,mode,start){
   md=mode;W=mode==="c"?340:460;const H=mode==="c"?440:259;ci=Math.max(0,start||0);
   const car=$("car");car.style.setProperty("--w",W+"px");car.style.setProperty("--h",H+"px");
   car.innerHTML=list.map((x,i)=>`<div class="it"><div class="halo"></div><div class="in"><div class="lift"></div><div class="card" style="--bg:linear-gradient(160deg,${BG[i%5][0]},${BG[i%5][1]})">`+
-   (mode==="c"?(x.emoji?`<div class="av em">${x.emoji}</div>`:`<img class="av" src="${x.img||""}">`)+`<div class="nm">${esc(x.name)}</div>`:`<img class="th" src="${x.img}">`)+
+   (mode==="c"?(x.emoji?`<div class="av em">${x.emoji}</div>`:`<img class="av" decoding="async" ${x.img?`src="${x.img}"`:""}>`)+`<div class="nm">${esc(x.name)}</div>`:`<img class="th" src="${x.img}">`)+
    `<i class="veil"></i><svg class="pl" viewBox="0 0 80 80"><circle cx="40" cy="40" r="38" fill="#fff" fill-opacity=".92"/><path d="M32 24L58 40L32 56Z" fill="#9b6bff"/></svg></div></div></div>`).join("");
   els=[...car.querySelectorAll(".it")];lay();
   requestAnimationFrame(()=>car.classList.remove("out"));
@@ -180,48 +188,72 @@ const mv=n=>{const j=Math.max(0,Math.min(els.length-1,ci+n));if(j!==ci){ci=j;lay
 const busy=b=>$("load").classList.toggle("on",b);
 function fail(r,b){ui="err";retry=r;back=b;$("err").classList.add("on")}
 const hideErr=()=>$("err").classList.remove("on");
+const jget=k=>{try{return JSON.parse(LS.g(k)||"null")}catch(e){return null}};
+const jset=(k,v)=>LS.s(k,JSON.stringify(v));
+const pdur=s=>{const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(s||"");return m?(+m[1]||0)*3600+(+m[2]||0)*60+(+m[3]||0):0};
+function applyCfg(c){key=c.key;chans=c.channels;const im=jget("chimg")||{};chans.forEach(x=>{if(im[x.id])x.img=im[x.id]});
+  words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
+  recWords=(c.rec||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean)}
+async function loadThumbs(){
+  const m=jget("chimg")||{},need=chans.filter(x=>!m[x.id]);if(!need.length)return;
+  try{const r=await api("channels","part=snippet&fields=items(id,snippet/thumbnails)&id="+need.map(x=>x.id).join(","));
+    (r.items||[]).forEach(i=>{const u=(i.snippet.thumbnails.medium||i.snippet.thumbnails.default).url;m[i.id]=u;
+      tiles.forEach((t,j)=>{if(t.id===i.id){t.img=u;const im=md==="c"&&els[j]&&els[j].querySelector("img.av");if(im)im.src=u}})});
+    jset("chimg",m)}catch(e){}
+}
+const prefetch=()=>chans.forEach(c=>getVids(c).catch(()=>{}));
 async function init(){
-  busy(true);hideErr();$("msg").textContent="";
+  hideErr();$("msg").textContent="";
+  const ck="cfg:"+CODE,cached=jget(ck);let shown=false;
+  const start=c=>{applyCfg(c);
+    tiles=[{type:"rand",name:"Surprise Me",emoji:"🎲"}].concat(recWords.length?[{type:"rec",name:"Discover",emoji:"🔭"}]:[],chans.map(x=>Object.assign({type:"ch"},x)));
+    busy(false);ui="home";mount(tiles,"c",0);shown=true;loadThumbs();setTimeout(prefetch,1200)};
+  if(cached&&cached.channels&&cached.channels.length)start(cached);else busy(true);
   try{
     const c=await(await fetch(`${FB}/f/${CODE}.json`)).json();
-    if(!c||!c.channels||!c.channels.length){busy(false);$("msg").textContent="🙋 Ask a grown-up to add channels!";return}
-    key=c.key;chans=c.channels;words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
-    recWords=(c.rec||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
-    const r=await api("channels","part=snippet&id="+chans.map(x=>x.id).join(","));
-    (r.items||[]).forEach(i=>{const ch=chans.find(x=>x.id===i.id);if(ch)ch.img=(i.snippet.thumbnails.high||i.snippet.thumbnails.default).url});
-    tiles=[{type:"rand",name:"Surprise Me",emoji:"🎲"}].concat(recWords.length?[{type:"rec",name:"Discover",emoji:"🔭"}]:[],chans.map(x=>Object.assign({type:"ch"},x)));
-    busy(false);ui="home";mount(tiles,"c",0);
-  }catch(e){busy(false);fail(init,null)}
+    if(!c||!c.channels||!c.channels.length){busy(false);if(!shown)$("msg").textContent="🙋 Ask a grown-up to add channels!";return}
+    jset(ck,c);
+    if(!shown)start(c);
+  }catch(e){if(!shown){busy(false);fail(init,null)}}
 }
 const blocked=t=>words.some(w=>t.toLowerCase().includes(w));
 const dec=t=>{const d=document.createElement("textarea");d.innerHTML=t;return d.value};
 const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-async function okIds(ids){const ok=new Set();for(let i=0;i<ids.length;i+=50){const r=await api("videos","part=status&id="+ids.slice(i,i+50).join(","));(r.items||[]).forEach(v=>{if(v.status.embeddable&&v.status.privacyStatus==="public")ok.add(v.id)})}return ok}
-async function getVids(c){
+async function okIds(ids){
+  const ok=new Map(),b=[];for(let i=0;i<ids.length;i+=50)b.push(ids.slice(i,i+50));
+  const rs=await Promise.all(b.map(x=>api("videos","part=status,contentDetails&fields=items(id,status(embeddable,privacyStatus),contentDetails/duration)&id="+x.join(","))));
+  rs.forEach(r=>(r.items||[]).forEach(v=>{if(v.status.embeddable&&v.status.privacyStatus==="public")ok.set(v.id,pdur(v.contentDetails&&v.contentDetails.duration))}));
+  return ok}
+function getVids(c){
   if(VC[c.id])return VC[c.id];
-  const r=await api("playlistItems","part=snippet&maxResults=30&playlistId=UU"+c.id.slice(2));
-  const its=(r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url}));
-  const ok=await okIds(its.map(v=>v.id));
-  return VC[c.id]=its.filter(v=>ok.has(v.id)&&v.img&&!blocked(v.title));
+  const ck="vc:"+c.id,h=jget(ck);
+  if(h&&Date.now()-h.t<18e5)return VC[c.id]=Promise.resolve(h.v.filter(v=>!blocked(v.title)));
+  return VC[c.id]=(async()=>{
+    const r=await api("playlistItems","part=snippet&maxResults=30&fields=items(snippet(title,resourceId/videoId,thumbnails(medium,default)))&playlistId=UU"+c.id.slice(2));
+    const its=(r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url}));
+    const ok=await okIds(its.map(v=>v.id));
+    const v=its.filter(v=>ok.has(v.id)&&v.img).map(v=>(v.dur=ok.get(v.id)||0,v));
+    jset(ck,{t:Date.now(),v});return v.filter(x=>!blocked(x.title));
+  })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>!blocked(v.title));throw e});
 }
 async function getRecs(){
   const ck="rec3:"+recWords.join("|");
   try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v}catch(e){}
   const pa=new Date(Date.now()-180*864e5).toISOString();
   const out=[],seen=new Set();
-  for(const w of recWords.slice(0,6)){
-    const r=await api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15&publishedAfter="+encodeURIComponent(pa)+"&q="+encodeURIComponent(w));
+  const RS=await Promise.all(recWords.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15&publishedAfter="+encodeURIComponent(pa)+"&q="+encodeURIComponent(w))));
+  for(const r of RS){
     if(r.error)throw new Error(r.error.message);
     (r.items||[]).forEach(i=>{const t=dec(i.snippet.title);
       if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&recWords.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||""})}});
   }
   const ok=await okIds(out.map(v=>v.id));
-  const v=out.filter(x=>ok.has(x.id)&&x.img).sort((a,b)=>b.t.localeCompare(a.t));
+  const v=out.filter(x=>ok.has(x.id)&&x.img).map(x=>(x.dur=ok.get(x.id)||0,x)).sort((a,b)=>b.t.localeCompare(a.t));
   LS.s(ck,JSON.stringify({t:Date.now(),v}));return v;
 }
 async function allVids(){
-  let v=(await Promise.all(chans.map(getVids))).flat();
-  if(recWords.length){try{v=v.concat(await getRecs())}catch(e){}}
+  const [a,b]=await Promise.all([Promise.all(chans.map(getVids)),recWords.length?getRecs().catch(()=>[]):[]]);
+  let v=a.flat().concat(b);
   const seen=new Set();return shuf(v.filter(x=>!seen.has(x.id)&&seen.add(x.id))).slice(0,80);
 }
 async function openChan(){
@@ -247,10 +279,11 @@ function play(){
   setTimeout(()=>{
     $("p").classList.add("on");const id=vids[ci].id;
     if(player&&player.loadVideoById)player.loadVideoById(id);
-    else player=new YT.Player("yt",{width:"100%",height:"100%",videoId:id,playerVars:{autoplay:1,rel:0,controls:0,disablekb:1,fs:0,iv_load_policy:3,playsinline:1,origin:location.origin},events:{onReady:e=>{try{e.target.getIframe().setAttribute("tabindex","-1")}catch(x){}window.focus()},onStateChange:e=>{if(e.data===0)ended()},onError:e=>oops(e.data)}});
-  },520);
+    else player=new YT.Player("yt",{width:"100%",height:"100%",videoId:id,playerVars:{autoplay:1,rel:0,controls:0,disablekb:1,fs:0,iv_load_policy:3,playsinline:1,origin:location.origin},events:{onReady:e=>{try{e.target.getIframe().setAttribute("tabindex","-1")}catch(x){}window.focus()},onStateChange:e=>{if(e.data===0)ended();else if(e.data===1)showBar(3000);else if(e.data===2)showBar(1e9)},onError:e=>oops(e.data)}});
+  },350);
 }
 function stop(){
+  if(adf)exitAd();$("pb").classList.remove("on");$("adh").classList.remove("on");
   if(player&&player.stopVideo)player.stopVideo();
   $("p").classList.remove("on");els.forEach(x=>x.classList.remove("go"));
   $("car").classList.remove("out");$("lab").style.opacity=1;ui="chan";lay();
@@ -259,6 +292,25 @@ function oops(code){
   stop();const bad=[100,101,150].includes(code);
   fail(()=>{hideErr();ui="chan";if(bad){vids.splice(ci,1);if(vids.length)mount(vids,"v",Math.min(ci,vids.length-1));else goHome()}else play()},()=>{hideErr();ui="chan"});
 }
+
+// ---------- progress bar & ads ----------
+const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
+const showBar=(ms=4000)=>{pbUntil=Date.now()+ms;if(!adf)$("pb").classList.add("on")};
+function inAd(){try{const e=vids[ci]&&vids[ci].dur,d=player.getDuration();return e>0&&d>0&&Math.abs(d-e)>3}catch(x){return false}}
+function enterAd(){if(!player||!player.getIframe)return;adf=true;$("p").classList.add("ad");$("pb").classList.remove("on");
+  try{const f=player.getIframe();f.setAttribute("tabindex","0");f.focus()}catch(x){}}
+function exitAd(){adf=false;$("p").classList.remove("ad");
+  try{const f=player.getIframe();f.setAttribute("tabindex","-1");f.blur()}catch(x){}window.focus()}
+setInterval(()=>{
+  if(ui!=="play"||!player||!player.getCurrentTime||!$("p").classList.contains("on")){$("adh").classList.remove("on");return}
+  const ad=inAd();
+  if(!ad&&adf)exitAd();
+  const h=$("adh");h.textContent=adf?"Skip Ad here · Back = remote":"▼ Press Down: Skip Ad";h.classList.toggle("on",ad||adf);
+  const d=player.getDuration()||0,t=seekT!=null?seekT:player.getCurrentTime()||0;
+  $("pb").classList.toggle("on",Date.now()<pbUntil&&!adf);
+  $("pbf").style.width=(d?Math.min(100,t/d*100):0)+"%";$("pbc").textContent=fmt(t);$("pbd").textContent=fmt(d);
+  $("pbi").textContent=player.getPlayerState()===2?"⏸":"▶";
+},250);
 
 // ---------- picker ----------
 function drawPk(){
@@ -279,9 +331,14 @@ document.addEventListener("keydown",e=>{
     backAct();e.preventDefault();return}
   if(ui==="play"){
     if(player&&player.getPlayerState){
-      if([13,415,19,179].includes(k)){player.getPlayerState()===1?player.pauseVideo():player.playVideo();e.preventDefault()}
-      else if(k===39||k===417)player.seekTo(player.getCurrentTime()+10,true);
-      else if(k===37||k===412)player.seekTo(Math.max(0,player.getCurrentTime()-10),true);
+      if(k>=37&&k<=40)e.preventDefault();
+      if([13,415,19,179].includes(k)){player.getPlayerState()===1?player.pauseVideo():player.playVideo();showBar(3000);e.preventDefault()}
+      else if(k===39||k===417||k===37||k===412){
+        const base=seekT!=null?seekT:player.getCurrentTime(),d=player.getDuration()||1e9;
+        seekT=Math.max(0,Math.min(d-1,base+((k===39||k===417)?10:-10)));player.seekTo(seekT,true);showBar(3500);
+        clearTimeout(seekTm);seekTm=setTimeout(()=>{seekT=null},1200)}
+      else if(k===40)enterAd();
+      else if(k===38)showBar(4000);
       else if(k===413)stop();
     }
     return}
@@ -298,13 +355,14 @@ document.addEventListener("keydown",e=>{
 });
 const atRoot=()=>!pk&&(ui==="home"||ui==="load"||(ui==="err"&&!back));
 function backAct(){
-  if(pk)closePk();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();
+  if(pk)closePk();else if(adf)exitAd();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();
 }
 history.pushState({k:1},"");
 window.addEventListener("popstate",()=>{
   if(atRoot()){try{window.close()}catch(x){}return}
   history.pushState({k:1},"");backAct();
 });
-setInterval(()=>{const a=document.activeElement;if(ui==="play"&&a&&a.tagName==="IFRAME"){a.blur();window.focus()}},400);
+setInterval(()=>{const a=document.activeElement;if(ui==="play"&&!adf&&a&&a.tagName==="IFRAME"){a.blur();window.focus()}},400);
+{const ys=document.createElement("script");ys.src="https://www.youtube.com/iframe_api";ys.async=true;document.head.appendChild(ys)}
 setTheme(ti);init();
 </script></body></html>
