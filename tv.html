@@ -85,8 +85,8 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 <div id="err"><h2>Oops! Let's try again 💕</h2><div class="bt">TRY AGAIN</div></div>
 <div id="pk"></div>
 <div id="p"><div id="yt"></div></div>
-<div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh"></div>
-<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">🖱 Magic Remote: point at the Skip button in the gold strip and click<br>▼ gives the player remote focus · ▲ reloads the video (may avoid the ad) · Back returns</div></div><div class="zone"></div></div>
+<div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh"></div><div id="dbg" style="display:none;position:fixed;left:20px;top:20px;z-index:50;font:24px monospace;color:#0f0;background:rgba(0,0,0,.7);padding:12px;white-space:pre"></div>
+<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">🖱 Point the Magic Remote at the Skip button in the gold strip and click<br>If this screen did not appear by itself press ▼ (press ▼ again when the ad is over) · ▲ reloads the video</div></div><div class="zone"></div></div>
 <script>
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
@@ -290,7 +290,7 @@ function play(){
   },350);
 }
 function stop(){
-  if(adf)exitAd();$("pb").classList.remove("on");$("ab").classList.remove("on");if(wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}}
+  manAd=false;if(adf)exitAd();$("pb").classList.remove("on");$("ab").classList.remove("on");if(wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}}
   if(player&&player.stopVideo)player.stopVideo();
   $("p").classList.remove("on");els.forEach(x=>x.classList.remove("go"));
   $("car").classList.remove("out");$("lab").style.opacity=1;ui="chan";lay();
@@ -303,7 +303,14 @@ function oops(code){
 // ---------- progress bar & ads ----------
 const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
 const showBar=(ms=4000)=>{pbUntil=Date.now()+ms;if(!adf)$("pb").classList.add("on")};
-function inAd(){try{const e=vids[ci]&&vids[ci].dur,d=player.getDuration();return e>0&&d>0&&Math.abs(d-e)>3}catch(x){return false}}
+function adSig(){try{
+  const v=vids[ci],vd=player.getVideoData?player.getVideoData():{};
+  if(player.getAdState&&player.getAdState()===1)return true;
+  if(vd&&vd.video_id&&v&&vd.video_id!==v.id)return true;
+  const d=player.getDuration();if(v&&v.dur>0&&d>0&&Math.abs(d-v.dur)>3)return true;
+}catch(x){}return false}
+let manAd=false;
+function inAd(){return manAd||adSig()}
 function enterAd(){if(!player||!player.getIframe)return;adf=true;$("p").classList.add("ad");$("pb").classList.remove("on");
   try{const f=player.getIframe();f.setAttribute("tabindex","0");f.focus()}catch(x){}}
 function exitAd(){adf=false;$("p").classList.remove("ad");
@@ -316,9 +323,10 @@ setInterval(()=>{
   const ad=inAd();
   if(ad&&!wasAd){wasAd=true;try{wasMuted=player.isMuted();player.mute()}catch(x){}}
   if(!ad&&wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}if(adf)exitAd()}
+  try{if($("dbg").style.display==="block"){const vd=player.getVideoData?player.getVideoData():{};$("dbg").textContent="state "+player.getPlayerState()+"  adState "+(player.getAdState?player.getAdState():"n/a")+"\nvid "+vd.video_id+"  exp "+vids[ci].id+"\ndur "+player.getDuration()+"  exp "+vids[ci].dur+"  t "+player.getCurrentTime().toFixed(1)+"\nad "+ad+" manual "+manAd}}catch(x){}
   ab.classList.toggle("on",ad);$("p").classList.toggle("ad",ad||adf);
   const d=player.getDuration()||0,t=seekT!=null?seekT:player.getCurrentTime()||0;
-  if(ad){$("abc").textContent="Ad ends in "+Math.max(0,Math.ceil(d-t))+"s";$("abb").style.opacity=adf?.6:1;$("abb").textContent=adf?"Select Skip below ▼":"▼ SKIP AD"}
+  if(ad){$("abc").textContent="Ad ends in "+Math.max(0,Math.ceil(d-t))+"s";$("abb").textContent="👆 Click SKIP AD below";if(manAd&&!adSig())$("abc").textContent="Press ▼ again when the ad is over"}
   $("pb").classList.toggle("on",!ad&&Date.now()<pbUntil&&!adf);
   $("pbf").style.width=(d?Math.min(100,t/d*100):0)+"%";$("pbc").textContent=fmt(t);$("pbd").textContent=fmt(d);
   $("pbi").textContent=player.getPlayerState()===2?"⏸":"▶";
@@ -349,9 +357,10 @@ document.addEventListener("keydown",e=>{
         const base=seekT!=null?seekT:player.getCurrentTime(),d=player.getDuration()||1e9;
         seekT=Math.max(0,Math.min(d-1,base+((k===39||k===417)?10:-10)));player.seekTo(seekT,true);showBar(3500);
         clearTimeout(seekTm);seekTm=setTimeout(()=>{seekT=null},1200)}
-      else if(k===40)enterAd();
+      else if(k===40){manAd=!manAd}
       else if(k===38){if(inAd())reloadVid();else showBar(4000)}
       else if(k===413)stop();
+      else if([405,404,48].includes(k))$("dbg").style.display=$("dbg").style.display==="block"?"none":"block";
     }
     return}
   if(ui==="load")return;
@@ -367,7 +376,7 @@ document.addEventListener("keydown",e=>{
 });
 const atRoot=()=>!pk&&(ui==="home"||ui==="load"||(ui==="err"&&!back));
 function backAct(){
-  if(pk)closePk();else if(adf)exitAd();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();
+  if(pk)closePk();else if(manAd)manAd=false;else if(adf)exitAd();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();
 }
 history.pushState({k:1},"");
 window.addEventListener("popstate",()=>{
