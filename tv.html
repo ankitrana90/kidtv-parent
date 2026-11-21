@@ -244,11 +244,11 @@ function getVids(c){
     jset(ck,{t:Date.now(),v});return v.filter(x=>!blocked(x.title));
   })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>!blocked(v.title));throw e});
 }
-async function getRecs(ws=recWords,ck="rec3:"+recWords.join("|"),days=180){
+async function getRecs(ws=recWords,ck="rec4:"+recWords.join("|"),days=180){
   try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v.filter(nb)}catch(e){}
   const pa=days?new Date(Date.now()-days*864e5).toISOString():"";
   const out=[],seen=new Set();
-  const RS=await Promise.all(ws.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15"+(pa?"&publishedAfter="+encodeURIComponent(pa):"")+"&q="+encodeURIComponent(w))));
+  const RS=await Promise.all(ws.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=50"+(pa?"&publishedAfter="+encodeURIComponent(pa):"")+"&q="+encodeURIComponent(w))));
   for(const r of RS){
     if(r.error)throw new Error(r.error.message);
     (r.items||[]).forEach(i=>{const t=dec(i.snippet.title);
@@ -258,7 +258,7 @@ async function getRecs(ws=recWords,ck="rec3:"+recWords.join("|"),days=180){
   const v=out.filter(x=>ok.has(x.id)&&x.img).map(x=>(x.dur=ok.get(x.id)||0,x)).sort((a,b)=>days?b.t.localeCompare(a.t):0);
   LS.s(ck,JSON.stringify({t:Date.now(),v}));return v.filter(nb);
 }
-const getKw=t=>{const ws=(t.kw||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);return getRecs(ws,"kw1:"+t.id+":"+ws.join("|"),0)};
+const getKw=t=>{const ws=(t.kw||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);return getRecs(ws,"kw2:"+t.id+":"+ws.join("|"),0)};
 async function allVids(){
   const [a,b]=await Promise.all([Promise.all(chans.map(getVids)),recWords.length?getRecs().catch(()=>[]):[]]);
   let v=a.flat().concat(b);
