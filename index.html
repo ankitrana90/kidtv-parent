@@ -23,17 +23,23 @@ button:disabled{opacity:.35}
 <div id="login"><h3>Parent login</h3><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button onclick="login()">Log in</button></div>
 <div id="app" style="display:none">
 
-<h3>Allowed channels</h3>
+<h3>Allowed channels &amp; keyword groups</h3>
 <input id="q" placeholder="Search channel name…">
 <button onclick="search()">Search</button>
 <ul id="res"></ul>
+<details id="kwf" style="margin:8px 0"><summary><b>+ Whitelisted keyword group</b></summary>
+<small>Shows a tile on the TV with videos from anywhere on YouTube whose title contains any of these keywords (Safe Search on). Negative keywords still apply.</small>
+<input id="kgn" placeholder="Group name (e.g. Bedtime Stories)">
+<input id="kgk" placeholder="Keywords, comma separated (e.g. bedtime story, lullaby)">
+<input id="kgi" placeholder="Group image link (optional, https://…)">
+<button id="kgb" onclick="addKw()">Add group</button></details>
 <ul id="list"></ul>
 
 <h3>Discover keywords</h3>
 <small>Adds a "Discover" tile on the TV with videos from anywhere on YouTube whose title has one of these words (Safe Search on). Leave empty to turn it off. Blocked words still apply.</small>
 <textarea id="rec" rows="2" placeholder="bedtime story, nursery rhymes"></textarea>
 
-<h3>Blocked words</h3>
+<h3>Negative keywords (global)</h3>
 <small>Comma separated. Videos with these in the title are hidden.</small>
 <textarea id="words" rows="3" placeholder="tom and jerry, blippi"></textarea>
 
@@ -61,11 +67,24 @@ async function load() {
   } catch (e) { $("st").textContent = "Load failed"; }
 }
 
+const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+let editIdx = -1;
 function draw() {
-  $("list").innerHTML = channels.map((c, i) => `<li>${c.name}<span><button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
+  $("list").innerHTML = channels.map((c, i) => `<li><div>${c.kw ? "🔑 " : ""}${esc(c.name)}${c.kw ? `<br><small>${esc(c.kw)}</small>` : ""}</div><span>${c.kw ? `<button onclick="edKw(${i})">Edit</button>` : ""}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
+}
+function addKw() {
+  const name = $("kgn").value.trim(), kw = $("kgk").value.split(",").map(x => x.trim()).filter(Boolean).join(", "), img = $("kgi").value.trim();
+  if (!name || !kw) { $("st").textContent = "Group needs a name and at least one keyword."; return; }
+  if (editIdx >= 0) Object.assign(channels[editIdx], { name, kw, img });
+  else channels.push({ id: "kw" + Date.now().toString(36), name, kw, img });
+  editIdx = -1; ["kgn", "kgk", "kgi"].forEach(k => $(k).value = ""); $("kgb").textContent = "Add group"; $("kwf").open = false; $("st").textContent = ""; draw();
+}
+function edKw(i) {
+  const c = channels[i]; editIdx = i; $("kgn").value = c.name; $("kgk").value = c.kw; $("kgi").value = c.img || "";
+  $("kgb").textContent = "Update group"; $("kwf").open = true; $("kwf").scrollIntoView();
 }
 function mv(i, d) { const j = i + d; if (j < 0 || j >= channels.length) return; [channels[i], channels[j]] = [channels[j], channels[i]]; draw(); }
-function rm(i) { channels.splice(i, 1); draw(); }
+function rm(i) { channels.splice(i, 1); editIdx = -1; $("kgb").textContent = "Add group"; draw(); }
 
 async function search() {
   const key = $("key").value.trim(), q = $("q").value.trim();
