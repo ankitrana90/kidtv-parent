@@ -1,0 +1,120 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1920">
+<title>Kid TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:#fff;font:800 36px "Baloo 2","Comic Sans MS","Trebuchet MS",sans-serif;
+background:linear-gradient(160deg,#6a5cff,#b05cff 50%,#ff6fb5);background-attachment:fixed;overflow-x:hidden}
+.bg{position:fixed;inset:0;pointer-events:none;font-size:70px;opacity:.25}
+.bg span{position:absolute;animation:fl 8s ease-in-out infinite}
+@keyframes fl{50%{transform:translateY(-40px) rotate(12deg)}}
+h1{text-align:center;font-size:84px;margin:40px 0 10px;text-shadow:0 6px 0 rgba(0,0,0,.2)}
+.row{display:flex;flex-wrap:wrap;justify-content:center;gap:40px;padding:30px 100px 80px}
+.t{width:360px;padding:30px 20px 20px;border-radius:50px;background:var(--c);text-align:center;
+border:8px solid #fff3;box-shadow:0 14px 0 rgba(0,0,0,.2);transition:transform .15s}
+.t img{width:230px;height:230px;border-radius:50%;border:8px solid #fff;object-fit:cover;background:#fff}
+.t b{display:block;margin-top:14px;font-size:38px;height:100px;overflow:hidden;line-height:1.1}
+.t.f{transform:scale(1.12) rotate(-2deg);border-color:#fff;animation:bo .6s infinite alternate}
+@keyframes bo{to{transform:scale(1.16) rotate(2deg)}}
+.v{width:400px;border-radius:30px;overflow:hidden;background:#fff;color:#333;border:8px solid #fff;
+box-shadow:0 12px 0 rgba(0,0,0,.2);transition:transform .15s}
+.v img{width:100%;display:block}
+.v p{margin:0;padding:10px 16px;font-size:26px;height:92px;overflow:hidden;line-height:1.15}
+.v.f{transform:scale(1.1);border-color:#ffd23f}
+.hd{display:flex;align-items:center;gap:30px;padding:40px 100px 0}
+.hd img{width:120px;height:120px;border-radius:50%;border:6px solid #fff}
+.hd h2{margin:0;font-size:64px}.hd small{margin-left:auto;font-size:30px;opacity:.9}
+#toast{display:none;position:fixed;bottom:50px;left:50%;transform:translateX(-50%);background:#fff;color:#e0338a;padding:20px 40px;border-radius:40px;font-size:40px;z-index:9;box-shadow:0 8px 0 rgba(0,0,0,.25)}
+#msg{text-align:center;font-size:56px;padding:60px}
+#p{position:fixed;inset:0;background:#000;display:none}#p.on{display:block}
+</style></head><body>
+<div class="bg"><span style="left:5%;top:15%">⭐</span><span style="left:85%;top:10%;animation-delay:2s">🌈</span><span style="left:12%;top:70%;animation-delay:4s">🎈</span><span style="left:90%;top:65%;animation-delay:1s">☁️</span><span style="left:50%;top:85%;animation-delay:3s">🦄</span></div>
+<div id="home"><h1>🎉 Let's Watch! 🎉</h1><div class="row" id="hg"></div></div>
+<div id="chan" style="display:none"><div class="hd"><img id="ci"><h2 id="cn"></h2><small>⬅ Press Back to go home</small></div><div class="row" id="vg"></div></div>
+<div id="toast">🙈 Oops! That one can't play. Pick another!</div>
+<div id="msg">🎈 Loading…</div>
+<div id="p"><div id="yt"></div></div>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const [FB, CODE] = location.hash.slice(1).split("|").map(decodeURIComponent);
+const COLORS=["#ff5c8a","#ffa23a","#2ec4b6","#4d9bff","#9b6bff","#7ac74f"];
+let chans=[],words=[],key="",screen="home",idx=0,homeIdx=0,vids=[],player=null,ytReady=false;
+function onYouTubeIframeAPIReady(){ytReady=true}
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/</g,"&lt;");
+const api=(p,q)=>fetch(`https://www.googleapis.com/youtube/v3/${p}?${q}&key=${key}`).then(r=>r.json());
+
+async function load(){
+  try{
+    const c=await(await fetch(`${FB}/f/${CODE}.json`)).json();
+    if(!c||!c.channels||!c.channels.length){$("msg").textContent="🙋 Ask a grown-up to add channels!";return}
+    key=c.key;chans=c.channels;
+    words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
+    const r=await api("channels","part=snippet&id="+chans.map(x=>x.id).join(","));
+    (r.items||[]).forEach(i=>{const ch=chans.find(x=>x.id===i.id);if(ch)ch.img=i.snippet.thumbnails.high?i.snippet.thumbnails.high.url:i.snippet.thumbnails.default.url});
+    $("msg").style.display="none";
+    $("hg").innerHTML=chans.map((c,i)=>`<div class="t" id="t${i}" style="--c:${COLORS[i%6]}"><img src="${c.img||""}"><b>${esc(c.name)}</b></div>`).join("");
+    focus(0);
+  }catch(e){$("msg").textContent="😢 Can't connect. Ask a grown-up."}
+}
+
+function focus(i){
+  const pre=screen==="home"?"t":"v",n=screen==="home"?chans.length:vids.length;
+  const o=$(pre+idx);if(o)o.classList.remove("f");
+  idx=Math.max(0,Math.min(n-1,i));
+  const e=$(pre+idx);if(e){e.classList.add("f");e.scrollIntoView({block:"center"})}
+}
+
+async function openChan(){
+  homeIdx=idx;const c=chans[idx];
+  screen="chan";$("home").style.display="none";$("chan").style.display="block";
+  $("ci").src=c.img||"";$("cn").textContent=c.name;$("vg").innerHTML="";
+  $("msg").style.display="block";$("msg").textContent="🎈 Loading…";
+  const r=await api("playlistItems","part=snippet&maxResults=30&playlistId=UU"+c.id.slice(2));
+  const ids=(r.items||[]).map(i=>i.snippet.resourceId.videoId);
+  const st=ids.length?await api("videos","part=status&id="+ids.join(",")):{items:[]};
+  const ok=new Set((st.items||[]).filter(v=>v.status.embeddable&&v.status.privacyStatus==="public").map(v=>v.id));
+  vids=(r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,
+    img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url}))
+    .filter(v=>ok.has(v.id)&&v.img&&!words.some(w=>v.title.toLowerCase().includes(w)));
+  $("msg").style.display=vids.length?"none":"block";
+  if(!vids.length)$("msg").textContent="🙈 No videos here yet!";
+  drawV();idx=0;focus(0);
+}
+function drawV(){$("vg").innerHTML=vids.map((v,i)=>`<div class="v" id="v${i}"><img src="${v.img}"><p>${esc(v.title)}</p></div>`).join("")}
+function oops(code){
+  stop();
+  if([100,101,150].includes(code)){vids.splice(idx,1);drawV();idx=Math.max(0,Math.min(idx,vids.length-1));focus(idx)}
+  const t=$("toast");t.textContent="🙈 Oops! That one can't play. Pick another! ("+code+")";t.style.display="block";setTimeout(()=>t.style.display="none",3500);
+}
+
+function goHome(){
+  screen="home";$("chan").style.display="none";$("home").style.display="block";
+  $("msg").style.display="none";idx=homeIdx;focus(idx);
+}
+
+function play(){
+  if(!ytReady||!vids[idx])return;
+  screen="play";$("p").classList.add("on");
+  if(player){player.loadVideoById(vids[idx].id);return}
+  player=new YT.Player("yt",{width:"100%",height:"100%",videoId:vids[idx].id,
+    playerVars:{autoplay:1,rel:0,origin:location.origin},events:{onStateChange:e=>{if(e.data===0)stop()},onError:e=>oops(e.data)}});
+}
+function stop(){
+  if(player&&player.stopVideo)player.stopVideo();
+  $("p").classList.remove("on");screen="chan";
+}
+
+document.addEventListener("keydown",e=>{
+  const k=e.keyCode;
+  if(k===461||k===8||k===27){
+    if(screen==="play"){stop();e.preventDefault()}
+    else if(screen==="chan"){goHome();e.preventDefault()}
+    return}
+  if(screen==="play")return;
+  if(k===37)focus(idx-1);else if(k===39)focus(idx+1);
+  else if(k===38)focus(idx-4);else if(k===40)focus(idx+4);
+  else if(k===13){screen==="home"?openChan():play()}
+});
+load();
+</script></body></html>
