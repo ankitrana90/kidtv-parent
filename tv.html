@@ -86,7 +86,7 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 <div id="pk"></div>
 <div id="p"><div id="yt"></div></div>
 <div id="pb"><span id="pbi">▶</span><span id="pbc">0:00</span><div id="pbt"><i id="pbf"></i></div><span id="pbd">0:00</span></div><div id="adh"></div>
-<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">Press ▼ to hand control to the Skip button (at the bottom, in the gold strip)<br>then press OK · ▲ reloads the video (may avoid the ad) · Back returns</div></div><div class="zone"></div></div>
+<div id="ab"><div class="bk"><div>📺 Ad playing · 🔇 muted</div><div id="abc"></div><div id="abb">▼ SKIP AD</div><div id="abh">🖱 Magic Remote: point at the Skip button in the gold strip and click<br>▼ gives the player remote focus · ▲ reloads the video (may avoid the ad) · Back returns</div></div><div class="zone"></div></div>
 <script>
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
@@ -316,7 +316,7 @@ setInterval(()=>{
   const ad=inAd();
   if(ad&&!wasAd){wasAd=true;try{wasMuted=player.isMuted();player.mute()}catch(x){}}
   if(!ad&&wasAd){wasAd=false;try{if(!wasMuted)player.unMute()}catch(x){}if(adf)exitAd()}
-  ab.classList.toggle("on",ad);
+  ab.classList.toggle("on",ad);$("p").classList.toggle("ad",ad||adf);
   const d=player.getDuration()||0,t=seekT!=null?seekT:player.getCurrentTime()||0;
   if(ad){$("abc").textContent="Ad ends in "+Math.max(0,Math.ceil(d-t))+"s";$("abb").style.opacity=adf?.6:1;$("abb").textContent=adf?"Select Skip below ▼":"▼ SKIP AD"}
   $("pb").classList.toggle("on",!ad&&Date.now()<pbUntil&&!adf);
