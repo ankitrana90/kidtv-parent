@@ -205,17 +205,18 @@ async function getVids(c){
   return VC[c.id]=its.filter(v=>ok.has(v.id)&&v.img&&!blocked(v.title));
 }
 async function getRecs(){
-  const ck="rec2:"+recWords.join("|");
+  const ck="rec3:"+recWords.join("|");
   try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v}catch(e){}
+  const pa=new Date(Date.now()-180*864e5).toISOString();
   const out=[],seen=new Set();
   for(const w of recWords.slice(0,6)){
-    const r=await api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15&q="+encodeURIComponent(w));
+    const r=await api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15&publishedAfter="+encodeURIComponent(pa)+"&q="+encodeURIComponent(w));
     if(r.error)throw new Error(r.error.message);
     (r.items||[]).forEach(i=>{const t=dec(i.snippet.title);
-      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&recWords.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url})}});
+      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&recWords.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||""})}});
   }
   const ok=await okIds(out.map(v=>v.id));
-  const v=shuf(out.filter(x=>ok.has(x.id)&&x.img));
+  const v=out.filter(x=>ok.has(x.id)&&x.img).sort((a,b)=>b.t.localeCompare(a.t));
   LS.s(ck,JSON.stringify({t:Date.now(),v}));return v;
 }
 async function allVids(){
@@ -274,8 +275,8 @@ const closePk=()=>{pk=false;$("pk").classList.remove("on")};
 document.addEventListener("keydown",e=>{
   const k=e.keyCode;
   if(k===461||k===8||k===27){
-    if(pk)closePk();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();else return;
-    e.preventDefault();return}
+    if(atRoot())return;
+    backAct();e.preventDefault();return}
   if(ui==="play"){
     if(player&&player.getPlayerState){
       if([13,415,19,179].includes(k)){player.getPlayerState()===1?player.pauseVideo():player.playVideo();e.preventDefault()}
@@ -294,6 +295,15 @@ document.addEventListener("keydown",e=>{
   if(k===37)mv(-1);else if(k===39)mv(1);
   else if(k===13){if(ui==="home")openChan();else if(ui==="chan")play()}
   else if(k===38)openPk();
+});
+const atRoot=()=>!pk&&(ui==="home"||ui==="load"||(ui==="err"&&!back));
+function backAct(){
+  if(pk)closePk();else if(ui==="play")stop();else if(ui==="err"){hideErr();if(back)back()}else if(ui==="chan")goHome();
+}
+history.pushState({k:1},"");
+window.addEventListener("popstate",()=>{
+  if(atRoot()){try{window.close()}catch(x){}return}
+  history.pushState({k:1},"");backAct();
 });
 setInterval(()=>{const a=document.activeElement;if(ui==="play"&&a&&a.tagName==="IFRAME"){a.blur();window.focus()}},400);
 setTheme(ti);init();
