@@ -91,7 +91,7 @@ box-shadow:0 28px 60px -22px rgba(50,25,110,.4),0 8px 18px -8px rgba(50,25,110,.
 const [FB,CODE]=location.hash.slice(1).split("|").map(decodeURIComponent);
 const $=id=>document.getElementById(id),esc=s=>s.replace(/</g,"&lt;");
 const LS={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
-let chans=[],tiles=[],recWords=[],VC={},rnd=false,words=[],key="",vids=[],els=[],ci=0,homeCi=0,W=340,md="c",ui="load",pk=false,pi=0,ti=+LS.g("th")||0,snd=LS.g("snd")!=="0",ytReady=false,player=null,retry=null,back=null,layer=0,adf=false,pbUntil=0,seekT=null,seekTm=0;
+let ALL=[],chans=[],tiles=[],recWords=[],VC={},rnd=false,words=[],key="",vids=[],els=[],ci=0,homeCi=0,W=340,md="c",ui="load",pk=false,pi=0,ti=+LS.g("th")||0,snd=LS.g("snd")!=="0",ytReady=false,player=null,retry=null,back=null,layer=0,adf=false,pbUntil=0,seekT=null,seekTm=0;
 function onYouTubeIframeAPIReady(){ytReady=true}
 const api=(p,q)=>fetch(`https://www.googleapis.com/youtube/v3/${p}?${q}&key=${key}`).then(r=>r.json());
 const BG=[["#ffd1e6","#ffe9d6"],["#d6e4ff","#e9dcff"],["#c9f3e6","#e2f6d3"],["#ffe3c4","#ffd1e6"],["#dcd0ff","#c9e6ff"]];
@@ -198,7 +198,7 @@ const hideErr=()=>$("err").classList.remove("on");
 const jget=k=>{try{return JSON.parse(LS.g(k)||"null")}catch(e){return null}};
 const jset=(k,v)=>LS.s(k,JSON.stringify(v));
 const pdur=s=>{const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(s||"");return m?(+m[1]||0)*3600+(+m[2]||0)*60+(+m[3]||0):0};
-function applyCfg(c){key=c.key;chans=c.channels;const im=jget("chimg")||{};chans.forEach(x=>{if(im[x.id])x.img=im[x.id]});
+function applyCfg(c){key=c.key;ALL=c.channels;chans=ALL.filter(x=>!x.kw);const im=jget("chimg")||{};chans.forEach(x=>{if(im[x.id])x.img=im[x.id]});
   words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
   recWords=(c.rec||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean)}
 async function loadThumbs(){
@@ -213,7 +213,7 @@ async function init(){
   hideErr();$("msg").textContent="";
   const ck="cfg:"+CODE,cached=jget(ck);let shown=false;
   const start=c=>{applyCfg(c);
-    tiles=[{type:"rand",name:"Surprise Me",emoji:"🎲"}].concat(recWords.length?[{type:"rec",name:"Discover",emoji:"🔭"}]:[],chans.map(x=>Object.assign({type:"ch"},x)));
+    tiles=[{type:"rand",name:"Surprise Me",emoji:"🎲"}].concat(recWords.length?[{type:"rec",name:"Discover",emoji:"🔭"}]:[],ALL.map(x=>x.kw?Object.assign({},x,{type:"kw",emoji:x.img?"":"🔎"}):Object.assign({type:"ch"},x)));
     busy(false);ui="home";mount(tiles,"c",0);shown=true;loadThumbs();setTimeout(prefetch,1200)};
   if(cached&&cached.channels&&cached.channels.length)start(cached);else busy(true);
   try{
@@ -243,21 +243,21 @@ function getVids(c){
     jset(ck,{t:Date.now(),v});return v.filter(x=>!blocked(x.title));
   })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>!blocked(v.title));throw e});
 }
-async function getRecs(){
-  const ck="rec3:"+recWords.join("|");
+async function getRecs(ws=recWords,ck="rec3:"+recWords.join("|"),days=180){
   try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v}catch(e){}
-  const pa=new Date(Date.now()-180*864e5).toISOString();
+  const pa=days?new Date(Date.now()-days*864e5).toISOString():"";
   const out=[],seen=new Set();
-  const RS=await Promise.all(recWords.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15&publishedAfter="+encodeURIComponent(pa)+"&q="+encodeURIComponent(w))));
+  const RS=await Promise.all(ws.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15"+(pa?"&publishedAfter="+encodeURIComponent(pa):"")+"&q="+encodeURIComponent(w))));
   for(const r of RS){
     if(r.error)throw new Error(r.error.message);
     (r.items||[]).forEach(i=>{const t=dec(i.snippet.title);
-      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&recWords.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||""})}});
+      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&ws.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||""})}});
   }
   const ok=await okIds(out.map(v=>v.id));
-  const v=out.filter(x=>ok.has(x.id)&&x.img).map(x=>(x.dur=ok.get(x.id)||0,x)).sort((a,b)=>b.t.localeCompare(a.t));
+  const v=out.filter(x=>ok.has(x.id)&&x.img).map(x=>(x.dur=ok.get(x.id)||0,x)).sort((a,b)=>days?b.t.localeCompare(a.t):0);
   LS.s(ck,JSON.stringify({t:Date.now(),v}));return v;
 }
+const getKw=t=>{const ws=(t.kw||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);return getRecs(ws,"kw1:"+t.id+":"+ws.join("|"),0)};
 async function allVids(){
   const [a,b]=await Promise.all([Promise.all(chans.map(getVids)),recWords.length?getRecs().catch(()=>[]):[]]);
   let v=a.flat().concat(b);
@@ -267,7 +267,7 @@ async function openChan(){
   homeCi=ci;pick();$("car").classList.add("out");busy(true);
   const t=tiles[ci];rnd=t.type==="rand";
   try{
-    vids=t.type==="ch"?await getVids(t):t.type==="rec"?await getRecs():await allVids();
+    vids=t.type==="ch"?await getVids(t):t.type==="rec"?await getRecs():t.type==="kw"?await getKw(t):await allVids();
     busy(false);ui="chan";
     if(!vids.length){els=[];$("car").innerHTML="";$("msg").textContent="🙈 Nothing here yet";$("car").classList.remove("out");return}
     mount(vids,"v",0);
