@@ -10,13 +10,18 @@ li{display:flex;justify-content:space-between;align-items:center;gap:10px;paddin
 li button{width:auto;padding:6px 12px}
 .x{background:#dc2626}
 small{color:#666}
+li span{display:flex;gap:6px}
+button:disabled{opacity:.35}
 </style></head><body>
 <h2>Kid TV Controls</h2>
 <details id="setup"><summary>Setup</summary>
 <input id="fb" placeholder="Firebase DB URL">
 <input id="code" placeholder="Family code (same as TV app)">
 <input id="key" placeholder="YouTube API key">
+<input id="fbkey" placeholder="Firebase Web API key">
 </details>
+<div id="login"><h3>Parent login</h3><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button onclick="login()">Log in</button></div>
+<div id="app" style="display:none">
 
 <h3>Allowed channels</h3>
 <input id="q" placeholder="Search channel name…">
@@ -24,11 +29,17 @@ small{color:#666}
 <ul id="res"></ul>
 <ul id="list"></ul>
 
+<h3>Discover keywords</h3>
+<small>Adds a "Discover" tile on the TV with videos from anywhere on YouTube whose title has one of these words (Safe Search on). Leave empty to turn it off. Blocked words still apply.</small>
+<textarea id="rec" rows="2" placeholder="bedtime story, nursery rhymes"></textarea>
+
 <h3>Blocked words</h3>
 <small>Comma separated. Videos with these in the title are hidden.</small>
 <textarea id="words" rows="3" placeholder="tom and jerry, blippi"></textarea>
 
 <button onclick="save()">Save to TV</button>
+<button class="x" onclick="logout()">Log out</button>
+</div>
 <p id="st"></p>
 
 <script>
@@ -36,7 +47,7 @@ const $ = id => document.getElementById(id);
 let channels = [];
 const L = k => { try { return localStorage.getItem(k) || "" } catch (e) { return "" } };
 const S = (k, v) => { try { localStorage.setItem(k, v) } catch (e) {} };
-["fb", "code", "key"].forEach(k => { $(k).value = L(k); $(k).onchange = () => S(k, $(k).value.trim()); });
+["fb", "code", "key", "fbkey"].forEach(k => { $(k).value = L(k); $(k).onchange = () => S(k, $(k).value.trim()); });
 if (!$("code").value) { $("code").value = Math.random().toString(36).slice(2, 12); S("code", $("code").value); }
 if (!$("fb").value) $("setup").open = true;
 const url = () => `${$("fb").value.trim()}/f/${$("code").value.trim()}.json`;
@@ -45,14 +56,15 @@ async function load() {
   if (!$("fb").value) return;
   try {
     const c = await (await fetch(url())).json();
-    if (c) { channels = c.channels || []; $("words").value = c.words || ""; if (c.key) $("key").value = c.key; }
+    if (c) { channels = c.channels || []; $("words").value = c.words || ""; $("rec").value = c.rec || ""; if (c.key) $("key").value = c.key; }
     draw();
   } catch (e) { $("st").textContent = "Load failed"; }
 }
 
 function draw() {
-  $("list").innerHTML = channels.map((c, i) => `<li>${c.name}<button class="x" onclick="rm(${i})">Remove</button></li>`).join("") || "<small>None yet</small>";
+  $("list").innerHTML = channels.map((c, i) => `<li>${c.name}<span><button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
 }
+function mv(i, d) { const j = i + d; if (j < 0 || j >= channels.length) return; [channels[i], channels[j]] = [channels[j], channels[i]]; draw(); }
 function rm(i) { channels.splice(i, 1); draw(); }
 
 async function search() {
@@ -76,12 +88,33 @@ function add(i) {
   $("res").innerHTML = ""; draw();
 }
 
+let tok = "", exp = 0;
+const FK = () => $("fbkey").value.trim();
+async function token() {
+  if (tok && Date.now() < exp) return tok;
+  const rt = L("rt"); if (!rt) throw new Error("login");
+  const r = await (await fetch("https://securetoken.googleapis.com/v1/token?key=" + FK(), { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt) })).json();
+  if (r.error) throw new Error("login");
+  tok = r.id_token; exp = Date.now() + (r.expires_in - 60) * 1000; S("rt", r.refresh_token); return tok;
+}
+async function login() {
+  if (!FK()) { $("setup").open = true; $("st").textContent = "Enter the Firebase Web API key in Setup first."; return; }
+  try {
+    const r = await (await fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + FK(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: $("em").value.trim(), password: $("pw").value, returnSecureToken: true }) })).json();
+    if (r.error) { $("st").textContent = "Login failed: " + r.error.message; return; }
+    tok = r.idToken; exp = Date.now() + (r.expiresIn - 60) * 1000; S("rt", r.refreshToken);
+    $("pw").value = ""; $("st").textContent = ""; show();
+  } catch (e) { $("st").textContent = "Network error: " + e.message; }
+}
+function show() { $("login").style.display = "none"; $("app").style.display = "block"; load(); }
+function logout() { S("rt", ""); location.reload(); }
 async function save() {
   try {
-    await fetch(url(), { method: "PUT", body: JSON.stringify({ key: $("key").value.trim(), channels, words: $("words").value }) });
-    $("st").textContent = "Saved. TV updates next time the app opens.";
-  } catch (e) { $("st").textContent = "Save failed"; }
+    const t = await token();
+    const r = await fetch(url() + "?auth=" + t, { method: "PUT", body: JSON.stringify({ key: $("key").value.trim(), channels, words: $("words").value, rec: $("rec").value }) });
+    $("st").textContent = r.ok ? "Saved. TV updates next time the app opens." : "Save refused (" + r.status + "). Check the Firebase rules and UID.";
+  } catch (e) { $("st").textContent = e.message === "login" ? "Session expired. Log in again." : "Save failed"; if (e.message === "login") logout(); }
 }
 $("q").addEventListener("keydown", e => { if (e.key === "Enter") search(); });
-load();
+if (L("rt") && FK()) token().then(show).catch(() => {});
 </script></body></html>
