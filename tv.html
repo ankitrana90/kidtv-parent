@@ -220,10 +220,11 @@ async function init(){
     const c=await(await fetch(`${FB}/f/${CODE}.json`)).json();
     if(!c||!c.channels||!c.channels.length){busy(false);if(!shown)$("msg").textContent="🙋 Ask a grown-up to add channels!";return}
     jset(ck,c);
-    if(!shown)start(c);
+    if(!shown)start(c);else words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
   }catch(e){if(!shown){busy(false);fail(init,null)}}
 }
 const blocked=t=>words.some(w=>t.toLowerCase().includes(w));
+const nb=x=>!blocked(x.title+" "+(x.ch||""));
 const dec=t=>{const d=document.createElement("textarea");d.innerHTML=t;return d.value};
 const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 async function okIds(ids){
@@ -244,18 +245,18 @@ function getVids(c){
   })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>!blocked(v.title));throw e});
 }
 async function getRecs(ws=recWords,ck="rec3:"+recWords.join("|"),days=180){
-  try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v}catch(e){}
+  try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v.filter(nb)}catch(e){}
   const pa=days?new Date(Date.now()-days*864e5).toISOString():"";
   const out=[],seen=new Set();
   const RS=await Promise.all(ws.slice(0,6).map(w=>api("search","part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=15"+(pa?"&publishedAfter="+encodeURIComponent(pa):"")+"&q="+encodeURIComponent(w))));
   for(const r of RS){
     if(r.error)throw new Error(r.error.message);
     (r.items||[]).forEach(i=>{const t=dec(i.snippet.title);
-      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&ws.some(k=>t.toLowerCase().includes(k))&&!blocked(t+" "+dec(i.snippet.channelTitle))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||""})}});
+      if(i.id&&i.id.videoId&&!seen.has(i.id.videoId)&&ws.some(k=>t.toLowerCase().includes(k))){seen.add(i.id.videoId);out.push({id:i.id.videoId,title:t,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url,t:i.snippet.publishedAt||"",ch:dec(i.snippet.channelTitle||"")})}});
   }
   const ok=await okIds(out.map(v=>v.id));
   const v=out.filter(x=>ok.has(x.id)&&x.img).map(x=>(x.dur=ok.get(x.id)||0,x)).sort((a,b)=>days?b.t.localeCompare(a.t):0);
-  LS.s(ck,JSON.stringify({t:Date.now(),v}));return v;
+  LS.s(ck,JSON.stringify({t:Date.now(),v}));return v.filter(nb);
 }
 const getKw=t=>{const ws=(t.kw||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);return getRecs(ws,"kw1:"+t.id+":"+ws.join("|"),0)};
 async function allVids(){
