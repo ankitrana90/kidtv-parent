@@ -198,11 +198,11 @@ const hideErr=()=>$("err").classList.remove("on");
 const jget=k=>{try{return JSON.parse(LS.g(k)||"null")}catch(e){return null}};
 const jset=(k,v)=>LS.s(k,JSON.stringify(v));
 const pdur=s=>{const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(s||"");return m?(+m[1]||0)*3600+(+m[2]||0)*60+(+m[3]||0):0};
-function applyCfg(c){key=c.key;ALL=c.channels;chans=ALL.filter(x=>!x.kw);const im=jget("chimg")||{};chans.forEach(x=>{if(im[x.id])x.img=im[x.id]});
+function applyCfg(c){key=c.key;ALL=c.channels;chans=ALL.filter(x=>!x.kw);const im=jget("chimg")||{};chans.forEach(x=>{if(im[x.id]&&!x.img)x.img=im[x.id]});
   words=(c.words||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);
   recWords=(c.rec||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean)}
 async function loadThumbs(){
-  const m=jget("chimg")||{},need=chans.filter(x=>!m[x.id]);if(!need.length)return;
+  const m=jget("chimg")||{},need=chans.filter(x=>!m[x.id]&&!x.img);if(!need.length)return;
   try{const r=await api("channels","part=snippet&fields=items(id,snippet/thumbnails)&id="+need.map(x=>x.id).join(","));
     (r.items||[]).forEach(i=>{const u=(i.snippet.thumbnails.medium||i.snippet.thumbnails.default).url;m[i.id]=u;
       tiles.forEach((t,j)=>{if(t.id===i.id){t.img=u;const im=md==="c"&&els[j]&&els[j].querySelector("img.av");if(im)im.src=u}})});
