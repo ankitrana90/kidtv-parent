@@ -208,7 +208,7 @@ async function loadThumbs(){
       tiles.forEach((t,j)=>{if(t.id===i.id){t.img=u;const im=md==="c"&&els[j]&&els[j].querySelector("img.av");if(im)im.src=u}})});
     jset("chimg",m)}catch(e){}
 }
-const prefetch=()=>chans.forEach(c=>getVids(c).catch(()=>{}));
+const prefetch=()=>chans.filter(c=>!c.deep).forEach(c=>getVids(c).catch(()=>{}));
 async function init(){
   hideErr();$("msg").textContent="";
   const ck="cfg:"+CODE,cached=jget(ck);let shown=false;
@@ -224,7 +224,9 @@ async function init(){
   }catch(e){if(!shown){busy(false);fail(init,null)}}
 }
 const blocked=t=>words.some(w=>t.toLowerCase().includes(w));
-const keep=(c,v)=>!blocked(v.title)&&(!c.only||c.only.toLowerCase().split(",").some(w=>(w=w.trim())&&v.title.toLowerCase().includes(w)));
+const hasOnly=(c,t)=>!c.only||c.only.toLowerCase().split(",").some(w=>(w=w.trim())&&t.toLowerCase().includes(w));
+const keep=(c,v)=>!blocked(v.title)&&hasOnly(c,v.title);
+const smp=(c,v,n)=>c.deep?shuf(v.slice()).slice(0,n):v;
 const hid=id=>ALL.some(g=>g.members&&g.hide&&g.members.includes(id));
 const nb=x=>!blocked(x.title+" "+(x.ch||""));
 const dec=t=>{const d=document.createElement("textarea");d.innerHTML=t;return d.value};
@@ -236,14 +238,17 @@ async function okIds(ids){
   return ok}
 function getVids(c){
   if(VC[c.id])return VC[c.id];
-  const ck="vc:"+c.id+(c.only?":d":""),h=jget(ck);
-  if(h&&Date.now()-h.t<18e5)return VC[c.id]=Promise.resolve(h.v.filter(v=>keep(c,v)));
+  const ck="vc:"+c.id+(c.deep?":x"+(c.only||""):c.only?":d":""),h=jget(ck);
+  if(h&&Date.now()-h.t<(c.deep?216e5:18e5))return VC[c.id]=Promise.resolve(h.v.filter(v=>keep(c,v)));
   return VC[c.id]=(async()=>{
-    let its=[],pt="";
-    for(let n=c.only?3:1;n--;){
-      const r=await api("playlistItems","part=snippet&maxResults="+(c.only?50:30)+"&fields=nextPageToken,items(snippet(title,resourceId/videoId,thumbnails(medium,default)))&playlistId=UU"+c.id.slice(2)+(pt?"&pageToken="+pt:""));
-      its=its.concat((r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url})));
-      pt=r.nextPageToken;if(!pt)break}
+    let its=[],pt="";const cut=c.deep?Date.now()-5*365*864e5:0;
+    for(let n=c.deep?20:c.only?3:1;n--;){
+      const r=await api("playlistItems","part=snippet,contentDetails&maxResults="+(c.deep||c.only?50:30)+"&fields=nextPageToken,items(contentDetails/videoPublishedAt,snippet(title,resourceId/videoId,thumbnails(medium,default)))&playlistId=UU"+c.id.slice(2)+(pt?"&pageToken="+pt:""));
+      let old=false;
+      (r.items||[]).forEach(i=>{const d=i.contentDetails&&i.contentDetails.videoPublishedAt;if(cut&&d&&Date.parse(d)<cut){old=true;return}
+        const th=i.snippet.thumbnails||{};its.push({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(th.medium||th.default||{}).url})});
+      pt=r.nextPageToken;if(!pt||old)break}
+    if(c.deep)its=its.filter(v=>hasOnly(c,v.title));
     const ok=await okIds(its.map(v=>v.id));
     const v=its.filter(v=>ok.has(v.id)&&v.img).map(v=>(v.dur=ok.get(v.id)||0,v));
     jset(ck,{t:Date.now(),v});return v.filter(v=>keep(c,v));
@@ -266,11 +271,11 @@ async function getRecs(ws=recWords,ck="rec4:"+recWords.join("|"),days=180){
 const getKw=t=>{const ws=(t.kw||"").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean);return getRecs(ws,"kw2:"+t.id+":"+ws.join("|"),0)};
 async function getGrp(t){
   const ms=(t.members||[]).map(id=>ALL.find(x=>x.id===id)).filter(Boolean);
-  const rs=await Promise.all(ms.map(m=>(m.kw?getKw(m):getVids(m)).catch(()=>[])));
+  const rs=await Promise.all(ms.map(m=>(m.kw?getKw(m):getVids(m).then(v=>smp(m,v,40))).catch(()=>[])));
   const seen=new Set();return shuf(rs.flat().filter(x=>!seen.has(x.id)&&seen.add(x.id))).slice(0,100);
 }
 async function allVids(){
-  const [a,b]=await Promise.all([Promise.all(chans.map(getVids)),recWords.length?getRecs().catch(()=>[]):[]]);
+  const [a,b]=await Promise.all([Promise.all(chans.map(c=>getVids(c).then(v=>smp(c,v,40)))),recWords.length?getRecs().catch(()=>[]):[]]);
   let v=a.flat().concat(b);
   const seen=new Set();return shuf(v.filter(x=>!seen.has(x.id)&&seen.add(x.id))).slice(0,80);
 }
@@ -278,7 +283,7 @@ async function openChan(){
   homeCi=ci;pick();$("car").classList.add("out");busy(true);
   const t=tiles[ci];rnd=t.type==="rand";
   try{
-    vids=t.type==="ch"?await getVids(t):t.type==="rec"?await getRecs():t.type==="kw"?await getKw(t):t.type==="grp"?await getGrp(t):await allVids();
+    vids=t.type==="ch"?smp(t,await getVids(t),60):t.type==="rec"?await getRecs():t.type==="kw"?await getKw(t):t.type==="grp"?await getGrp(t):await allVids();
     busy(false);ui="chan";
     if(!vids.length){els=[];$("car").innerHTML="";$("msg").textContent="🙈 Nothing here yet";$("car").classList.remove("out");return}
     mount(vids,"v",0);
