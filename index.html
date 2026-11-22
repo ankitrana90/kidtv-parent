@@ -35,6 +35,13 @@ button:disabled{opacity:.35}
 <input id="kgk" placeholder="Keywords, comma separated (e.g. bedtime story, lullaby)">
 <input id="kgi" placeholder="Group image link (optional, https://…)">
 <button id="kgb" onclick="addKw()">Add group</button></details>
+<details id="gpf" style="margin:8px 0"><summary><b>+ Collection (club several into one tile)</b></summary>
+<small>Pick channels, filtered channels and/or keyword groups. The TV shows one tile that mixes all their videos.</small>
+<input id="gpn" placeholder="Collection name (e.g. Animals)">
+<input id="gpi" placeholder="Collection image link (optional, https://…)">
+<div id="gpm"></div>
+<label style="display:block;padding:6px 0"><input type="checkbox" id="gph" checked style="width:auto;margin:0 8px 0 0">Hide the picked items from the main row (show only inside the collection)</label>
+<button id="gpb" onclick="addGrp()">Add collection</button></details>
 <ul id="list"></ul>
 
 <h3>Discover keywords</h3>
@@ -71,8 +78,31 @@ async function load() {
 
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 let editIdx = -1;
+let gEdit = -1;
 function draw() {
-  $("list").innerHTML = channels.map((c, i) => `<li><div>${c.kw ? "🔑 " : ""}${esc(c.name)}${c.kw ? `<br><small>${esc(c.kw)}</small>` : ""}${!c.kw && c.only ? `<br><small>🎯 only: ${esc(c.only)}</small>` : ""}</div><span>${c.kw ? `<button onclick="edKw(${i})">Edit</button>` : `<button onclick="setOnly(${i})">Filter</button><button onclick="setImg(${i})">Icon</button>`}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
+  const nm = id => { const m = channels.find(x => x.id === id); return m ? m.name : null; };
+  $("list").innerHTML = channels.map((c, i) => {
+    const sb = c.members ? c.members.map(nm).filter(Boolean).map(esc).join(", ") : c.kw ? esc(c.kw) : c.only ? "🎯 only: " + esc(c.only) : "";
+    const btns = c.members ? `<button onclick="edGrp(${i})">Edit</button>` : c.kw ? `<button onclick="edKw(${i})">Edit</button>` : `<button onclick="setOnly(${i})">Filter</button><button onclick="setImg(${i})">Icon</button>`;
+    const inG = channels.some(g => g.members && g.hide && g.members.includes(c.id));
+    return `<li><div>${c.members ? "📁 " : c.kw ? "🔑 " : ""}${esc(c.name)}${sb ? `<br><small>${sb}</small>` : ""}${inG ? "<br><small>↳ shown inside a collection only</small>" : ""}</div><span>${btns}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`;
+  }).join("") || "<small>None yet</small>";
+  renderMembers();
+}
+function renderMembers(sel) {
+  const cur = sel || [...document.querySelectorAll("#gpm input:checked")].map(x => x.value);
+  $("gpm").innerHTML = channels.filter(c => !c.members).map(c => `<label style="display:block;padding:4px 0"><input type="checkbox" value="${esc(c.id)}" style="width:auto;margin:0 8px 0 0" ${cur.includes(c.id) ? "checked" : ""}>${c.kw ? "🔑 " : ""}${esc(c.name)}</label>`).join("") || "<small>Add channels or keyword groups first.</small>";
+}
+function addGrp() {
+  const name = $("gpn").value.trim(), img = $("gpi").value.trim(), hide = $("gph").checked, members = [...document.querySelectorAll("#gpm input:checked")].map(x => x.value);
+  if (!name || !members.length) { $("st").textContent = "Collection needs a name and at least one item ticked."; return; }
+  if (gEdit >= 0) Object.assign(channels[gEdit], { name, img, members, hide });
+  else channels.push({ id: "g" + Date.now().toString(36), name, img, members, hide });
+  gEdit = -1; $("gpn").value = ""; $("gpi").value = ""; $("gph").checked = true; $("gpb").textContent = "Add collection"; $("gpf").open = false; $("st").textContent = ""; renderMembers([]); draw();
+}
+function edGrp(i) {
+  const c = channels[i]; gEdit = i; $("gpn").value = c.name; $("gpi").value = c.img || ""; $("gph").checked = !!c.hide;
+  renderMembers(c.members); $("gpb").textContent = "Update collection"; $("gpf").open = true; $("gpf").scrollIntoView();
 }
 function addKw() {
   const name = $("kgn").value.trim(), kw = $("kgk").value.split(",").map(x => x.trim()).filter(Boolean).join(", "), img = $("kgi").value.trim();
@@ -86,7 +116,7 @@ function edKw(i) {
   $("kgb").textContent = "Update group"; $("kwf").open = true; $("kwf").scrollIntoView();
 }
 function mv(i, d) { const j = i + d; if (j < 0 || j >= channels.length) return; [channels[i], channels[j]] = [channels[j], channels[i]]; draw(); }
-function rm(i) { channels.splice(i, 1); editIdx = -1; $("kgb").textContent = "Add group"; draw(); }
+function rm(i) { const id = channels[i].id; channels.splice(i, 1); channels.forEach(g => { if (g.members) g.members = g.members.filter(x => x !== id); }); editIdx = -1; gEdit = -1; $("kgb").textContent = "Add group"; $("gpb").textContent = "Add collection"; draw(); }
 
 async function search() {
   const key = $("key").value.trim(), q = $("q").value.trim();
