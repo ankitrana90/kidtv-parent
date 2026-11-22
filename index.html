@@ -82,8 +82,8 @@ let gEdit = -1;
 function draw() {
   const nm = id => { const m = channels.find(x => x.id === id); return m ? m.name : null; };
   $("list").innerHTML = channels.map((c, i) => {
-    const sb = c.members ? c.members.map(nm).filter(Boolean).map(esc).join(", ") : c.kw ? esc(c.kw) : c.only ? "🎯 only: " + esc(c.only) : "";
-    const btns = c.members ? `<button onclick="edGrp(${i})">Edit</button>` : c.kw ? `<button onclick="edKw(${i})">Edit</button>` : `<button onclick="setOnly(${i})">Filter</button><button onclick="setImg(${i})">Icon</button>`;
+    const sb = c.members ? c.members.map(nm).filter(Boolean).map(esc).join(", ") : c.kw ? esc(c.kw) : [c.only ? "🎯 only: " + esc(c.only) : "", c.deep ? "🎲 older videos (up to 5 yrs), shuffled" : ""].filter(Boolean).join(" · ");
+    const btns = c.members ? `<button onclick="edGrp(${i})">Edit</button>` : c.kw ? `<button onclick="edKw(${i})">Edit</button>` : `<button onclick="setOnly(${i})">Filter</button><button onclick="setImg(${i})">Icon</button><button onclick="toggleDeep(${i})">${c.deep ? "Old ✓" : "Old"}</button>`;
     const inG = channels.some(g => g.members && g.hide && g.members.includes(c.id));
     return `<li><div>${c.members ? "📁 " : c.kw ? "🔑 " : ""}${esc(c.name)}${sb ? `<br><small>${sb}</small>` : ""}${inG ? "<br><small>↳ shown inside a collection only</small>" : ""}</div><span>${btns}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`;
   }).join("") || "<small>None yet</small>";
@@ -140,6 +140,10 @@ function add(i) {
   if (only) e.only = only;
   const img = $("cimg").value.trim(); if (img) e.img = img;
   $("only").value = ""; $("cimg").value = ""; $("res").innerHTML = ""; draw();
+}
+function toggleDeep(i) {
+  if (channels[i].deep) delete channels[i].deep; else channels[i].deep = true;
+  draw();
 }
 function setImg(i) {
   const v = prompt("Icon image link for this channel (https://…). Leave empty to use the channel's own YouTube picture.", channels[i].img || "");
