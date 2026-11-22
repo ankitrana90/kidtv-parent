@@ -25,6 +25,7 @@ button:disabled{opacity:.35}
 
 <h3>Allowed channels &amp; keyword groups</h3>
 <input id="q" placeholder="Search channel name…">
+<input id="only" placeholder="Optional: only show videos with these words in title (comma separated)">
 <button onclick="search()">Search</button>
 <ul id="res"></ul>
 <details id="kwf" style="margin:8px 0"><summary><b>+ Whitelisted keyword group</b></summary>
@@ -70,7 +71,7 @@ async function load() {
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 let editIdx = -1;
 function draw() {
-  $("list").innerHTML = channels.map((c, i) => `<li><div>${c.kw ? "🔑 " : ""}${esc(c.name)}${c.kw ? `<br><small>${esc(c.kw)}</small>` : ""}</div><span>${c.kw ? `<button onclick="edKw(${i})">Edit</button>` : ""}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
+  $("list").innerHTML = channels.map((c, i) => `<li><div>${c.kw ? "🔑 " : ""}${esc(c.name)}${c.kw ? `<br><small>${esc(c.kw)}</small>` : ""}${!c.kw && c.only ? `<br><small>🎯 only: ${esc(c.only)}</small>` : ""}</div><span>${c.kw ? `<button onclick="edKw(${i})">Edit</button>` : `<button onclick="setOnly(${i})">Filter</button>`}<button onclick="mv(${i},-1)" ${i ? "" : "disabled"}>▲</button><button onclick="mv(${i},1)" ${i < channels.length - 1 ? "" : "disabled"}>▼</button><button class="x" onclick="rm(${i})">Remove</button></span></li>`).join("") || "<small>None yet</small>";
 }
 function addKw() {
   const name = $("kgn").value.trim(), kw = $("kgk").value.split(",").map(x => x.trim()).filter(Boolean).join(", "), img = $("kgi").value.trim();
@@ -102,9 +103,18 @@ async function search() {
   } catch (e) { $("st").textContent = "Network error: " + e.message; }
 }
 function add(i) {
-  const c = window._r[i];
-  if (!channels.some(x => x.id === c.id)) channels.push(c);
-  $("res").innerHTML = ""; draw();
+  const c = window._r[i], only = $("only").value.split(",").map(x => x.trim()).filter(Boolean).join(", ");
+  let e = channels.find(x => x.id === c.id);
+  if (!e) channels.push(e = { id: c.id, name: c.name });
+  if (only) e.only = only;
+  $("only").value = ""; $("res").innerHTML = ""; draw();
+}
+function setOnly(i) {
+  const v = prompt("Only show videos whose title contains one of these words (comma separated). Leave empty to show all videos of this channel.", channels[i].only || "");
+  if (v === null) return;
+  const o = v.split(",").map(x => x.trim()).filter(Boolean).join(", ");
+  if (o) channels[i].only = o; else delete channels[i].only;
+  draw();
 }
 
 let tok = "", exp = 0;
