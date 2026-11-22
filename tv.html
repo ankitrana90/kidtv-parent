@@ -224,6 +224,7 @@ async function init(){
   }catch(e){if(!shown){busy(false);fail(init,null)}}
 }
 const blocked=t=>words.some(w=>t.toLowerCase().includes(w));
+const keep=(c,v)=>!blocked(v.title)&&(!c.only||c.only.toLowerCase().split(",").some(w=>(w=w.trim())&&v.title.toLowerCase().includes(w)));
 const nb=x=>!blocked(x.title+" "+(x.ch||""));
 const dec=t=>{const d=document.createElement("textarea");d.innerHTML=t;return d.value};
 const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -234,15 +235,18 @@ async function okIds(ids){
   return ok}
 function getVids(c){
   if(VC[c.id])return VC[c.id];
-  const ck="vc:"+c.id,h=jget(ck);
-  if(h&&Date.now()-h.t<18e5)return VC[c.id]=Promise.resolve(h.v.filter(v=>!blocked(v.title)));
+  const ck="vc:"+c.id+(c.only?":d":""),h=jget(ck);
+  if(h&&Date.now()-h.t<18e5)return VC[c.id]=Promise.resolve(h.v.filter(v=>keep(c,v)));
   return VC[c.id]=(async()=>{
-    const r=await api("playlistItems","part=snippet&maxResults=30&fields=items(snippet(title,resourceId/videoId,thumbnails(medium,default)))&playlistId=UU"+c.id.slice(2));
-    const its=(r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url}));
+    let its=[],pt="";
+    for(let n=c.only?3:1;n--;){
+      const r=await api("playlistItems","part=snippet&maxResults="+(c.only?50:30)+"&fields=nextPageToken,items(snippet(title,resourceId/videoId,thumbnails(medium,default)))&playlistId=UU"+c.id.slice(2)+(pt?"&pageToken="+pt:""));
+      its=its.concat((r.items||[]).map(i=>({id:i.snippet.resourceId.videoId,title:i.snippet.title,img:(i.snippet.thumbnails.medium||i.snippet.thumbnails.default||{}).url})));
+      pt=r.nextPageToken;if(!pt)break}
     const ok=await okIds(its.map(v=>v.id));
     const v=its.filter(v=>ok.has(v.id)&&v.img).map(v=>(v.dur=ok.get(v.id)||0,v));
-    jset(ck,{t:Date.now(),v});return v.filter(x=>!blocked(x.title));
-  })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>!blocked(v.title));throw e});
+    jset(ck,{t:Date.now(),v});return v.filter(v=>keep(c,v));
+  })().catch(e=>{delete VC[c.id];if(h)return h.v.filter(v=>keep(c,v));throw e});
 }
 async function getRecs(ws=recWords,ck="rec4:"+recWords.join("|"),days=180){
   try{const c=JSON.parse(LS.g(ck)||"null");if(c&&Date.now()-c.t<216e5)return c.v.filter(nb)}catch(e){}
